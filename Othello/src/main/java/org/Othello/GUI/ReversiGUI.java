@@ -252,13 +252,6 @@ public class ReversiGUI extends JFrame {
         backButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (game.getPreciousBoardState() != null) {
-                    game.replayFromStart();
-                    updateBoard(game.getBoardState()); // 更新棋盘显示
-                    updateLabels(); // 更新步数和当前玩家显示
-                } else {
-                    JOptionPane.showMessageDialog(ReversiGUI.this, "无法悔棋！", "错误", JOptionPane.WARNING_MESSAGE);
-                }
             }
             });
 
@@ -365,6 +358,7 @@ public class ReversiGUI extends JFrame {
         resetGameGUI();
         setTimeLimit();
     }
+
     // 创建一个用于绘制圆形棋子的类
     class CircleIcon implements Icon {
         private Color color;
