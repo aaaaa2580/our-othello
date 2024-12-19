@@ -279,6 +279,8 @@ public class ReversiGUI extends JFrame {
                         g.printStackTrace();
                     } catch (ClassNotFoundException g) {
                         JOptionPane.showMessageDialog(ReversiGUI.this, "文件中的数据格式不正确。", "错误", JOptionPane.ERROR_MESSAGE);
+                    } catch (NullPointerException h) {
+                        JOptionPane.showMessageDialog(ReversiGUI.this, "文件中的数据格式不正确,请重新选择", "错误", JOptionPane.ERROR_MESSAGE);
 
                     }
                 } else {
