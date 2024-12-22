@@ -1,4 +1,3 @@
-
 package org.Othello.Game;
 import java.util.ArrayList;
 
@@ -12,7 +11,6 @@ public class ReversiGame {
     private final int s;
     public int step=0;
     public int[][][] documentation=new int[64][8][8];
-    private ArrayList<Object> flippedPiecesList;
 
     public ReversiGame(int size) {
         this.board = new int[size][size];
@@ -36,12 +34,10 @@ public class ReversiGame {
             return false;
         }
         if (isValidMove(row, col, currentPlayer)||board[row][col] == RED) {
-            previous(documentation,step,board);
+            previous( documentation,step,board);
             board[row][col] = currentPlayer;
-
             flipDiscs(row, col, currentPlayer);
             changePlayer();
-
             step++;
             return true;
         }
@@ -56,7 +52,7 @@ public class ReversiGame {
     private boolean isValidMove(int row, int col, int player) {
         // 判断是否超出边界或目标位置是否为空
         if (row < 0 || col < 0 || row >= s || col >= s || board[row][col] != EMPTY) {
-            if(board[row][col] == 3) {
+            if (board[row][col] == 3) {
                 return true;
             }
             return false;
@@ -88,8 +84,7 @@ public class ReversiGame {
                 opponentFound = true; // 发现对手棋子
             } else if (opponentFound && board[x][y] == player) {
                 return 1; // 有对手棋子包围并回到己方棋子，合法
-            }
-            else {
+            } else {
                 break; // 遇到其他情况，终止
             }
             // 移动到下一个位置
@@ -121,7 +116,6 @@ public class ReversiGame {
             }
         }
     }
-
 
     //翻转的逻辑判断
     private void stereotype2(int row, int col, int player, int m, int n) {
@@ -156,6 +150,14 @@ public class ReversiGame {
         //左下角
         stereotype2(row, col, player, 1, -1);
     }
+    //判断游戏是否结束
+    public boolean gameOver() {
+        //黑白棋都没有合法位置则游戏结束
+        boolean blackHasMoves = !noValidMoves(BLACK);
+        boolean whiteHasMoves = !noValidMoves(WHITE);
+        return !blackHasMoves && !whiteHasMoves;
+    }
+
     //判别不合法操作
     public boolean noValidMoves(int color) {
         for (int i = 0; i < s; i++) {
@@ -235,19 +237,16 @@ public class ReversiGame {
     public void previous(int[][][] doc,int step,int[][] b) {
         this.step = step;
         for (int i = 0; i < s; i++) {
-            for (int j = 0; j < s; j++) {
-                doc[step][i][j] = b[i][j];
-            }
+            System.arraycopy(b[i], 0, doc[step][i], 0, s);
         }
     }
-    //用于清除悔棋后的最后一步状态
+    //用于悔棋的最后一步状态
     public int[][] getPrevious() {
         if (step > 0) { // 检查是否还有可悔棋的步数
             // 恢复棋盘状态为上一状态
             for (int i = 0; i < s; i++) {
                 for (int j = 0; j < s; j++) {
                     board[i][j] = documentation[step-1][i][j];
-                    documentation[step][i][j] = 0; // 清除当前步的存储数据
                 }
             }
             step--; // 回退一步
@@ -261,25 +260,145 @@ public class ReversiGame {
     public int[][] setDocumentation(Object a){
         int[][][] doc=(int[][][])a;
         documentation=doc.clone();
-       for(int i=63;i>0;i--){
-           if(doc[i][4][4]!=EMPTY){
-               step=i;
-               break;
-           }
-       }
-        board=doc[step];
-        return board;
-    }
-    public int getStep(Object a){
-        int s=0;
-        int[][][] doc=(int[][][])a;
-        documentation=doc;
         for(int i=63;i>0;i--){
             if(doc[i][4][4]!=EMPTY){
-                s=i;
+                step=i;
                 break;
             }
         }
-        return s;
+        for (int i = 0; i < s; i++) {
+            System.arraycopy(doc[step][i], 0, board[i], 0, s);
+        }
+        return board;
+    }
+    public int getStep(){
+        return step;
+    }
+    // AI逻辑
+    public boolean easy = false;
+    public boolean hard = false;
+    //获取相应难度对应深度
+    private int getMaxDepth(int depth) {
+        if (easy) {
+            return 5;
+        } else if (hard) {
+            return 8;
+        }
+        return 5; // 默认深度限制
+    }
+    //获取ai下棋坐标
+    public int[] aiMakeMove() {
+        // 计算 AI 的最佳移动
+        int[] bestMove = minimaxDecision();
+
+        // 如果找到合法移动，进行移动
+        if (bestMove != null) {
+            makeMove(bestMove[0], bestMove[1]);
+        }
+        return bestMove;
+    }
+    //利用minimax方法计算对应难度的最佳下棋坐标
+    private int[] minimaxDecision() {
+        int bestValue = Integer.MIN_VALUE;
+        int[] bestMove = null;
+
+        // 初始化 alpha 和 beta
+        int alpha = Integer.MIN_VALUE;
+        int beta = Integer.MAX_VALUE;
+
+        for (int i = 0; i < s; i++) {
+            for (int j = 0; j < s; j++) {
+                if (isValidMove(i, j, WHITE)) {
+                    // 在寻找最佳移动之前标记所有潜在移动
+                    board[i][j] = WHITE; // 暂时设置
+                    int moveValue = minimax(0, false, alpha, beta); // 深度从0开始，传递 alpha 和 beta
+                    board[i][j] = EMPTY; // 重置
+
+                    if (moveValue > bestValue) {
+                        bestValue = moveValue;
+                        bestMove = new int[]{i, j};
+                    }
+
+                    // 更新 alpha 值，用于剪枝
+                    alpha = Math.max(alpha, moveValue);
+                }
+            }
+        }
+
+        return bestMove;
+    }
+    //利用beta剪枝优化minimax算法函数，，要不然真要卡死了
+    private int minimax(int depth, boolean maximizingPlayer, int alpha, int beta) {
+        int maxDepth = getMaxDepth(depth);
+
+        if (gameOver() || depth >= maxDepth) {
+            return evaluateBoardPosition();
+        }
+
+        if (maximizingPlayer) {
+            int maxEval = Integer.MIN_VALUE;
+            for (int i = 0; i < s; i++) {
+                for (int j = 0; j < s; j++) {
+                    if (isValidMove(i, j, WHITE)) {
+                        board[i][j] = WHITE;
+                        int eval = minimax(depth + 1, false, alpha, beta);
+                        board[i][j] = EMPTY;
+                        maxEval = Math.max(maxEval, eval);
+                        alpha = Math.max(alpha, eval); // 更新alpha
+                        if (beta <= alpha) break; // 剪枝
+                    }
+                }
+            }
+            return maxEval;
+        } else {
+            int minEval = Integer.MAX_VALUE;
+            for (int i = 0; i < s; i++) {
+                for (int j = 0; j < s; j++) {
+                    if (isValidMove(i, j, BLACK)) {
+                        board[i][j] = BLACK;
+                        int eval = minimax(depth + 1, true, alpha, beta);
+                        board[i][j] = EMPTY;
+                        minEval = Math.min(minEval, eval);
+                        beta = Math.min(beta, eval); // 更新beta
+                        if (beta <= alpha) break; // 剪枝
+                    }
+                }
+            }
+            return minEval;
+        }
+    }
+    // 加权位置评估，对于该棋盘各位置的价值评估来源于ai测算
+    private int evaluateBoardPosition() {
+        // 位置价值矩阵
+        int[][] boardValue = {
+                {10, 2, 9, 7, 7, 9, 2, 10},
+                {2, 1, 3, 4, 4, 3, 1, 2},
+                {9, 1, 3, 4, 4, 3, 1, 2},
+                {7, 4, 6, 5, 5, 6, 4, 7},
+                {7, 4, 6, 5, 5, 6, 4, 7},
+                {9, 1, 3, 4, 4, 3, 1, 2},
+                {2, 1, 3, 4, 4, 3, 1, 2},
+                {10, 2, 9, 7, 7, 9, 2, 10},
+        };
+
+        int score = 0;
+
+        // 计算当前棋盘的位置价值
+        for (int i = 0; i < s; i++) {
+            for (int j = 0; j < s; j++) {
+                if (board[i][j] == BLACK) {
+                    score += boardValue[i][j];
+                } else if (board[i][j] == WHITE) {
+                    score -= boardValue[i][j];
+                }
+            }
+        }
+        // 在游戏进入后期增加边角价值
+        int chess = getBLACK() + getWHITE() ;
+        if (chess >= 42) {
+            score *= 2;
+        }
+        return score;
     }
 }
+

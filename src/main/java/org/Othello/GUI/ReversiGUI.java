@@ -1,8 +1,7 @@
-
-//悔棋（看情况）
-//完善存档和读档
 package org.Othello.GUI;
 import org.Othello.Game.ReversiGame;
+
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -10,7 +9,8 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.util.Timer;
 import java.util.TimerTask;
-
+//添加菜单中的更换背景按键
+//添加点击音效
 public class ReversiGUI extends JFrame {
     private JButton[][] boardButtons;
     private ReversiGame game;
@@ -27,6 +27,8 @@ public class ReversiGUI extends JFrame {
     private JLabel timeLabel; // 显示剩余时间
     private int remainingTime; // 当前剩余时间
     private int spendTime = 0;
+
+    private boolean aiMode = false;
 
 
     public ReversiGUI(int size, ReversiGame game) {
@@ -99,23 +101,33 @@ public class ReversiGUI extends JFrame {
 
 
     }
+    private void getColour(){
+        Color backgroundColor = JColorChooser.showDialog(this,"选个背景色",Color.WHITE);
+        if (backgroundColor != null) {
+            // 设置棋盘背景为选定的颜色
+            for (int i = 0; i < boardSize; i++) {
+                for (int j = 0; j < boardSize; j++) {
+                    boardButtons[i][j].getParent().setBackground(backgroundColor); // 设置按钮所在面板的背景颜色
+                }
+            }
+        }
+    }
     // 初始化菜单
     private void initJMenuBar() {
         JMenuBar menuBar = new JMenuBar();
         JMenu function = new JMenu("功能");
-        JMenu introduction = new JMenu("介绍");
-        menuBar.add(function);
-        menuBar.add(introduction);
 
         JMenuItem replay = new JMenuItem("重开一局");
         replay.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 resetGameGUI();
+                stopTimer();
                 setTimeLimit(); // 重新设置时间限制
+                resetTimer();
+                spendTime = 0;
             }
         });
-
         JMenuItem close = new JMenuItem("不玩了！！");
         close.addActionListener(new ActionListener() {
             @Override
@@ -132,16 +144,59 @@ public class ReversiGUI extends JFrame {
                 }
             }
         });
+
+        JMenuItem changBackground = new JMenuItem("换背景");
+        changBackground.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                getColour();
+            }
+        });
+
         function.add(replay);
         function.add(close);
+        function.add(changBackground);
 
+
+
+
+        JMenu ai = new JMenu("人机对战");
+        JMenuItem easy = new JMenuItem("简单");
+        JMenuItem hard = new JMenuItem("有点难度（但不多）");
+        //简单模式逻辑处理
+        easy.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                aiMode = true;
+                game.easy = true;
+                JOptionPane.showMessageDialog(ReversiGUI.this, "已进入人机对战找成就感模式,ai默认为后手（白棋）捏");
+            }
+        });
+        //困难模式逻辑处理
+        hard.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                aiMode = true;
+                game.hard = true;
+                JOptionPane.showMessageDialog(ReversiGUI.this, "已进入人机对战稍微有点难度模式,ai默认为后手（白棋）捏");
+            }
+        });
+        ai.add(easy);
+        ai.add(hard);
+
+        JMenu introduction = new JMenu("介绍");
         JMenuItem aboutUs = new JMenuItem("纯吐槽（什么功能也没有，别点）");
         introduction.add(aboutUs);
+
+        menuBar.add(function);
+        menuBar.add(ai);
+        menuBar.add(introduction);
 
         this.setJMenuBar(menuBar);
     }
     //更新棋盘gui状态
     private void resetGameGUI() {
+        aiMode = false;
         game.resetGame(); // 重置游戏逻辑状态
         step = 0; // 重置步数
         player = game.getCurrentPlayer() == 1 ? "黑棋" : "白棋"; // 重置当前玩家
@@ -151,6 +206,7 @@ public class ReversiGUI extends JFrame {
     }
     //每点击一次按钮后的相关逻辑
     public void handleBoardClick(int row, int col) {
+
         // 每发生一次成功的移动
         if (game.makeMove(row, col)) {
             step++;
@@ -160,6 +216,9 @@ public class ReversiGUI extends JFrame {
             game.hint();
             updateBoard(game.getBoardState());
             updateLabels();
+
+            // 检查当前玩家是否为 AI（假设 AI 是白棋）
+            AIMakeMove();
         }
         else
         {JOptionPane.showMessageDialog(this, "这里不能放啊(#`O′)！！！", "错误", JOptionPane.ERROR_MESSAGE);}
@@ -172,6 +231,9 @@ public class ReversiGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, game.winner()  + "\n总耗时：" + spendTime +"秒","游戏结束", JOptionPane.INFORMATION_MESSAGE);
                 resetGameGUI();
                 setTimeLimit();
+                spendTime=0;
+                // 检查当前玩家是否为 AI（假设 AI 是白棋）
+                AIMakeMove();
                 return;
             }
             //棋盘不满则顺延续至下一位
@@ -184,12 +246,14 @@ public class ReversiGUI extends JFrame {
             spendTime += (timeLimit - remainingTime);
             resetTimer(); //重置计时器
             //若下一位依然没有有效行棋位置则游戏结束
+
             if(game.noValidMoves(game.getCurrentPlayer())) {
                 spendTime += (timeLimit - remainingTime);
                 stopTimer();
                 JOptionPane.showMessageDialog(this, game.winner() + "\n总耗时：" + spendTime +"秒","游戏结束", JOptionPane.INFORMATION_MESSAGE);
                 resetGameGUI();
                 setTimeLimit();
+                spendTime=0;
                 return;
             }
         }
@@ -202,6 +266,25 @@ public class ReversiGUI extends JFrame {
             JOptionPane.showMessageDialog(this, game.winner() + "\n总耗时：" + spendTime +"秒" ,"GAME OVER", JOptionPane.INFORMATION_MESSAGE);
             resetGameGUI();
             setTimeLimit();
+            spendTime=0;
+        }
+    }
+
+    //处理ai行棋的逻辑
+    private void AIMakeMove() {
+        if (aiMode && game.getCurrentPlayer() == 2) { // 如果当前是 AI 的回合
+            // AI 落子
+            int[] aiMove = game.aiMakeMove();
+            if (aiMove != null) {
+                game.makeMove(aiMove[0], aiMove[1]); // AI 执行落子
+                step++;
+                player = "黑棋"; // 切换回玩家
+
+                // 更新棋盘状态和标签
+                game.hint();
+                updateBoard(game.getBoardState());
+                updateLabels();
+            }
         }
     }
     // 更新棋盘显示
@@ -270,7 +353,7 @@ public class ReversiGUI extends JFrame {
                          ObjectInputStream ois = new ObjectInputStream(fis)) {
                         Object documentation = ois.readObject();
                         updateBoard(game.setDocumentation(documentation));
-                        step=game.getStep(documentation);// 更新棋盘状态
+                        step=game.getStep();// 更新棋盘状态
                         player = game.getCurrentPlayer() == 1 ? "黑棋" : "白棋";
                         updateLabels(); // 更新步数和玩家显示
                         JOptionPane.showMessageDialog(ReversiGUI.this, "读完力，，");
@@ -312,9 +395,6 @@ public class ReversiGUI extends JFrame {
         // 将按钮面板添加到窗口的底部
         add(buttonPanel, BorderLayout.SOUTH);
     }
-    //保存游戏相关逻辑
-
-
     //更新标签
     private void updateLabels() {
         stepCountLabel.setText("当前步数：" + step);
@@ -405,7 +485,10 @@ public class ReversiGUI extends JFrame {
         JOptionPane.showMessageDialog(this, player + "超时！游戏结束，，\n" + game.winner() + "\n总耗时：" + spendTime +"秒", "超时提醒", JOptionPane.WARNING_MESSAGE);
         resetGameGUI();
         setTimeLimit();
+        resetTimer();
+        spendTime = 0;
     }
+
     // 创建一个用于绘制圆形棋子的类
     class CircleIcon implements Icon {
         private Color color;
@@ -442,7 +525,5 @@ public class ReversiGUI extends JFrame {
             return 60;
         }
     }
-
-
 }
 
